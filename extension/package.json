@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
   "dev": "vite",
-  "build": "vite build && node scripts/make-popup.js",
-  "preview": "vite preview"
+  "build": "vite build && node scripts/make-popup.cjs",
+  "preview": "vite preview",
+  "build-extension": "npm run build && powershell -ExecutionPolicy Bypass -File scripts/build-extension.ps1"
 },
   "dependencies": {
     "react": "^19.2.0",
