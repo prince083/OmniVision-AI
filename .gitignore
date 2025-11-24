@@ -1,0 +1,70 @@
+#############################
+# Node / React (Extension)
+#############################
+
+# dependencies
+extension/node_modules/
+node_modules/
+
+# build outputs
+extension/dist/
+extension/dist-extension/
+dist/
+*.log
+
+# local environment
+.env
+.env.local
+.env.development
+.env.production
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+#############################
+# Python / Django (Backend)
+#############################
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# virtual environment
+myvenv/
+venv/
+ENV/
+env/
+
+# Django files to ignore
+db.sqlite3
+*.sqlite3
+
+# IDE stuff
+.vscode/
+.idea/
+*.iml
+
+#############################
+# Vite
+#############################
+
+vite.svg
+extension/.vite/
+
+#############################
+# Extensions and testing folders
+#############################
+
+extension/public/icon.png
+extension/temp/
+extension/.cache/
+
+#############################
+# Logs
+#############################
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
