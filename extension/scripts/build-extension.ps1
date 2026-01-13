@@ -28,6 +28,11 @@ Copy-Item -Path "background.js" -Destination $distExt
 Write-Host "Copying contentScript.js ..."
 Copy-Item -Path "contentScript.js" -Destination $distExt
 
+# Copy offscreen files
+Write-Host "Copying offscreen files ..."
+Copy-Item -Path "offscreen.html" -Destination $distExt
+Copy-Item -Path "offscreen.js" -Destination $distExt
+
 # Copy public/ folder
 if (Test-Path "public") {
     Write-Host "Copying public folder ..."

@@ -68,3 +68,13 @@ extension/.cache/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+#############################
+# OCR Debug Files
+#############################
+backend/ocr_debug.log
+backend/debug_ocr_input.png
+backend/ocr_input.png
+backend/received_image.png
+*.png
+!extension/public/*.png
