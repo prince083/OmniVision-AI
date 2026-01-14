@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 
 export default function App() {
 
@@ -29,6 +29,7 @@ export default function App() {
 
   const [capturedImage, setCapturedImage] = useState(null);
   const [viewingCapture, setViewingCapture] = useState(false);
+  const [captureSource, setCaptureSource] = useState("screen"); // 'screen' | 'upload'
 
   useEffect(() => {
     // Clear badge when user opens popup
@@ -38,7 +39,6 @@ export default function App() {
     chrome.storage.local.get(["latestCrop"], (result) => {
       if (result.latestCrop) {
         setCapturedImage(result.latestCrop);
-        // Do NOT auto-switch to view, just let the user know it's there
       }
     });
 
@@ -46,9 +46,8 @@ export default function App() {
     const handler = (msg) => {
       if (msg.type === "CROPPED_IMAGE") {
         setCapturedImage(msg.image);
+        setCaptureSource("screen");
         chrome.storage.local.set({ latestCrop: msg.image });
-        // Optionally auto-view if it just happened LIVE while popup was open?
-        // Let's stick to the requested "View Option" for consistency
       }
     };
     chrome.runtime.onMessage.addListener(handler);
@@ -64,9 +63,13 @@ export default function App() {
   // ... inside App component ...
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedText, setExtractedText] = useState("");
+  const [copySuccess, setCopySuccess] = useState(false);
 
-  const extractText = async () => {
-    if (!capturedImage) return;
+  const fileInputRef = useRef(null);
+
+  const extractText = async (imageOverride) => {
+    const imageToUse = typeof imageOverride === 'string' ? imageOverride : capturedImage;
+    if (!imageToUse) return;
 
     setIsExtracting(true);
     setExtractedText("");
@@ -80,7 +83,7 @@ export default function App() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ image: capturedImage })
+        body: JSON.stringify({ image: imageToUse })
       });
 
       const data = await response.json();
@@ -99,33 +102,112 @@ export default function App() {
     }
   };
 
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result;
+        setCapturedImage(base64String);
+        setCaptureSource("upload");
+        setViewingCapture(true);
+        // Manual extraction required by user
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(extractedText);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      alert("Failed to copy to clipboard");
+    }
+  };
+
   // 1. View State: Showing the image
   if (viewingCapture && capturedImage) {
     return (
       <div style={{ width: 360, padding: 16, fontFamily: "Inter" }}>
-        <h2>Captured Region</h2>
+        <h2>{captureSource === "upload" ? "Uploaded Image" : "Captured Region"}</h2>
         <img src={capturedImage} style={{ maxWidth: "100%", maxHeight: "200px", border: "1px solid #ccc", margin: "10px 0" }} />
 
         {/* OCR Result Area */}
         {extractedText && (
-          <div style={{ background: "#f5f5f5", padding: "10px", borderRadius: "8px", margin: "10px 0", maxHeight: "150px", overflowY: "auto", fontSize: "13px", whiteSpace: "pre-wrap" }}>
-            <strong>Extracted Text:</strong><br />
-            {extractedText}
+          <div>
+            <div style={{ background: "#f5f5f5", padding: "10px", borderRadius: "8px", margin: "10px 0", maxHeight: "150px", overflowY: "auto", fontSize: "13px", whiteSpace: "pre-wrap", border: "1px solid #e0e0e0" }}>
+              <strong style={{ color: "#333" }}>Extracted Text:</strong><br />
+              {extractedText}
+            </div>
+            <button
+              onClick={copyToClipboard}
+              style={{
+                ...btn,
+                background: copySuccess ? "#10b981" : "#3b82f6",
+                color: "#fff",
+                marginBottom: "10px",
+                transition: "all 0.3s ease"
+              }}
+            >
+              {copySuccess ? "✓ Copied!" : "📋 Copy to Clipboard"}
+            </button>
+          </div>
+        )}
+
+        {/* Progress Bar during OCR */}
+        {isExtracting && (
+          <div style={{ margin: "15px 0" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+              <span style={{ fontSize: "14px", color: "#666" }}>✨ Extracting text...</span>
+            </div>
+            <div style={{
+              width: "100%",
+              height: "8px",
+              background: "#e0e0e0",
+              borderRadius: "4px",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                width: "100%",
+                height: "100%",
+                background: "linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #3b82f6 100%)",
+                backgroundSize: "200% 100%",
+                animation: "progress-animation 1.5s ease-in-out infinite",
+                borderRadius: "4px"
+              }}></div>
+            </div>
           </div>
         )}
 
         <div style={{ display: "flex", gap: "10px", flexDirection: "column" }}>
 
-          {!extractedText && (
-            <button onClick={extractText} disabled={isExtracting} style={{ ...btn, background: isExtracting ? "#ccc" : "#222", color: "#fff" }}>
-              {isExtracting ? "Extracting..." : "⚡ Extract Text"}
+          {!extractedText && !isExtracting && (
+            <button onClick={extractText} style={{ ...btn, background: "#222", color: "#fff" }}>
+              ⚡ Extract Text
             </button>
           )}
 
-          <button onClick={() => setViewingCapture(false)} style={{ ...btn, background: "#ccc" }}>
-            Back
+          <button onClick={() => {
+            setViewingCapture(false);
+            if (captureSource === "upload") {
+              setCapturedImage(null);
+              setExtractedText("");
+            }
+          }} style={{ ...btn, background: "#6b7280", color: "#fff" }}>
+            ← Back
           </button>
         </div>
+
+        {/* CSS Animation for progress bar */}
+        <style>{`
+          @keyframes progress-animation {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+          }
+        `}</style>
       </div>
     );
   }
@@ -141,26 +223,6 @@ export default function App() {
       chrome.runtime.sendMessage({ type: "START_SCREEN_CAPTURE", tabId });
       window.close(); // Close popup to let user drag
     });
-    // chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
-    //   setTimeout(() => {
-    //     chrome.tabs.sendMessage(
-    //       tabs[0].id,
-    //       { type: "START_CROPPER" },
-    //       (resp) => {
-    //         if (chrome.runtime.lastError) {
-    //           alert("Error: " + chrome.runtime.lastError.message);
-    //         } else {
-    //           console.log("Cropped Image:", resp);
-    //           if (resp?.image) {
-    //             const w = window.open();
-    //             w.document.body.innerHTML = `<img src="${resp.image}" />`;
-    //           }
-    //         }
-    //       }
-    //     );
-    //   }, 1000);
-
-    // });
   };
 
 
@@ -195,7 +257,14 @@ export default function App() {
         </button>
       )}
 
-      <button style={btn}>🖼 Extract Text from Image</button>
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: "none" }}
+        accept="image/*"
+        onChange={handleFileUpload}
+      />
+      <button onClick={() => fileInputRef.current.click()} style={btn}>🖼 Extract Text from Image</button>
 
       <button style={btn}>🎧 Transcribe YouTube</button>
 

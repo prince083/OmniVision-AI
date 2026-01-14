@@ -5,8 +5,9 @@ A powerful Chrome extension for extracting text from screenshots and web content
 ## 🚀 Features
 
 - **Screen Capture OCR**: Select any region of your screen and extract text instantly
+- **Image Upload OCR**: Upload any image file for instant text extraction
 - **Tesseract Integration**: Professional-grade text recognition
-- **Clean UI**: Intuitive popup interface
+- **Clean UI**: Intuitive popup interface with dark mode/code support
 - **HiDPI Support**: Accurate capture on high-resolution displays
 
 ## 📁 Project Structure
@@ -93,13 +94,18 @@ OmniVision/
    - Click "📸 Capture Screen Area"
    - Select the region you want to extract text from
 
-2. **View & Extract**:
-   - Click "✅ View Captured Image"
+2. **Upload & Extract**:
+   - Click "🖼 Extract Text from Image"
+   - Select an image file from your computer
    - Click "⚡ Extract Text"
-   - Text appears in the popup
 
-3. **Clear & Retry**:
-   - Click "🗑 Clear Capture" to start over
+3. **View & Copy**:
+   - View the captured or uploaded image
+   - Click "⚡ Extract Text" (if not already done)
+   - Click "📋 Copy to Clipboard" to save the result
+
+4. **Clear & Retry**:
+   - Click "🗑 Clear Capture" (or "← Back" for uploads) to start over
 
 ## 🔧 Development
 
@@ -161,7 +167,6 @@ See [PROGRESS.md](PROGRESS.md) for detailed task tracking.
 
 **Coming Soon:**
 - YouTube transcription support
-- Context menu integration
 - Extraction history
 - Multi-language support
 
@@ -175,4 +180,4 @@ Built with ❤️ by the OmniVision team
 
 ---
 
-**Last Updated:** January 13, 2026
+**Last Updated:** January 14, 2026

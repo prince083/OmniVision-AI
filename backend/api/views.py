@@ -8,15 +8,12 @@ import cv2
 from PIL import Image
 import pytesseract
 import io
+import re
 
-# Configure Tesseract path for Windows
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 def home(request):
-    return JsonResponse({
-        "message": "OmniVision Backend Running - Using Tesseract OCR",
-        "status": "ok"
-    })
+    return JsonResponse({"message": "OmniVision Backend - Day 4 Complete", "status": "ok"})
 
 def health(request):
     return JsonResponse({"status": "ok", "service": "omni_backend"})
@@ -27,33 +24,54 @@ def ocr_extract(request):
         return JsonResponse({"error": "Method not allowed"}, status=405)
     
     try:
-        # Parse request
         data = json.loads(request.body)
         image_b64 = data.get("image")
         
         if not image_b64:
             return JsonResponse({"error": "No image provided"}, status=400)
         
-        # Decode image
         if "," in image_b64:
             image_b64 = image_b64.split(",")[1]
         
         image_bytes = base64.b64decode(image_b64)
+        original_image = Image.open(io.BytesIO(image_bytes))
+        original_image.save("ocr_input_original.png")
         
-        # Use PIL to load image (Tesseract works better with PIL)
-        image = Image.open(io.BytesIO(image_bytes))
+        # Simple preprocessing
+        img_array = np.array(original_image)
+        if len(img_array.shape) == 3:
+            gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+        else:
+            gray = img_array
         
-        # Save for debugging
-        image.save("ocr_input.png")
-        print(f"Saved ocr_input.png - Size: {image.size}, Mode: {image.mode}")
+        # Detect dark background
+        avg_brightness = np.mean(gray)
+        if avg_brightness < 127:
+            gray = 255 - gray
         
-        # Run Tesseract OCR
+        # Light enhancement
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        enhanced = clahe.apply(gray)
+        
+        # Sharpening
+        kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
+        sharpened = cv2.filter2D(enhanced, -1, kernel)
+        
+        ocr_image = Image.fromarray(sharpened)
+        ocr_image.save("ocr_input_processed.png")
+        
         try:
-            text = pytesseract.image_to_string(image)
-            print(f"OCR completed. Extracted text length: {len(text)}")
-            print(f"Text: {text[:200]}")  # Print first 200 chars
+            # PSM 3: Automatic page segmentation for documents
+            config = r'--oem 3 --psm 3 -c preserve_interword_spaces=1'
+            text = pytesseract.image_to_string(ocr_image, config=config)
             
-            if not text or not text.strip():
+            print(f"OCR completed. Length: {len(text)}")
+            
+            # Basic cleanup
+            text = re.sub(r'\n\n\n+', '\n\n', text)
+            text = re.sub(r' +', ' ', text)
+            
+            if not text.strip():
                 text = "No text detected"
             
             return JsonResponse({
@@ -63,17 +81,12 @@ def ocr_extract(request):
             })
             
         except Exception as ocr_error:
-            print(f"Tesseract error: {type(ocr_error).__name__}: {ocr_error}")
+            print(f"OCR error: {ocr_error}")
             import traceback
             traceback.print_exc()
-            return JsonResponse({
-                "error": f"Tesseract error: {str(ocr_error)}. Make sure Tesseract is installed on your system."
-            }, status=500)
+            return JsonResponse({"error": str(ocr_error)}, status=500)
         
     except Exception as e:
         import traceback
-        error_details = traceback.format_exc()
-        print("ERROR:", error_details)
-        return JsonResponse({
-            "error": f"{type(e).__name__}: {str(e)}"
-        }, status=500)
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
